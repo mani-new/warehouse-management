@@ -7,6 +7,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.Synchronization;
+import jakarta.transaction.TransactionSynchronizationRegistry;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -29,10 +31,13 @@ import org.jboss.logging.Logger;
 public class StoreResource {
 
   @Inject LegacyStoreManagerGateway legacyStoreManagerGateway;
-  
+
   @Inject Event<StoreCreatedEvent> storeCreatedEvent;
-  
+
   @Inject Event<StoreUpdatedEvent> storeUpdatedEvent;
+
+  @Inject TransactionSynchronizationRegistry transactionSyncRegistry;
+
 
   private static final Logger LOGGER = Logger.getLogger(StoreResource.class.getName());
 
@@ -59,7 +64,22 @@ public class StoreResource {
     }
 
     store.persist();
-    storeCreatedEvent.fireAsync(new StoreCreatedEvent(store));
+
+    // Register a callback to fire the event only after successful transaction commit
+    transactionSyncRegistry.registerInterposedSynchronization(new Synchronization() {
+      @Override
+      public void beforeCompletion() {
+        // No action before completion
+      }
+
+      @Override
+      public void afterCompletion(int status) {
+        // Fire event only if transaction committed successfully (status == STATUS_COMMITTED)
+        if (status == 3) { // javax.transaction.Status.STATUS_COMMITTED = 3
+          storeCreatedEvent.fireAsync(new StoreCreatedEvent(store));
+        }
+      }
+    });
 
     return Response.ok(store).status(201).build();
   }
@@ -81,9 +101,15 @@ public class StoreResource {
     entity.name = updatedStore.name;
     entity.quantityProductsInStock = updatedStore.quantityProductsInStock;
 
-    storeUpdatedEvent.fireAsync(new StoreUpdatedEvent(entity));
+    // Fire the event after successful update
+    fireStoreUpdatedEventAsync(entity);
 
     return entity;
+  }
+
+  @Transactional(Transactional.TxType.SUPPORTS)
+  void fireStoreUpdatedEventAsync(Store entity) {
+    storeUpdatedEvent.fireAsync(new StoreUpdatedEvent(entity));
   }
 
   @PATCH
@@ -108,7 +134,8 @@ public class StoreResource {
       entity.quantityProductsInStock = updatedStore.quantityProductsInStock;
     }
 
-    storeUpdatedEvent.fireAsync(new StoreUpdatedEvent(entity));
+    // Fire the event after successful patch
+    fireStoreUpdatedEventAsync(entity);
 
     return entity;
   }

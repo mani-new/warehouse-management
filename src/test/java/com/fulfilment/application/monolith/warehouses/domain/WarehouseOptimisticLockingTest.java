@@ -65,7 +65,7 @@ public class WarehouseOptimisticLockingTest {
     DbWarehouse warehouse2 = em.find(DbWarehouse.class, warehouseId);
     
     // Both have the same version initially
-    //assertEquals(warehouse1.version, warehouse2.version);
+    assertEquals(warehouse1.version, warehouse2.version);
     
     // First transaction updates
     updateWarehouseInSeparateTransaction(warehouseId, 80);
@@ -83,7 +83,7 @@ public class WarehouseOptimisticLockingTest {
   @Transactional
   public void testVersionIncrementsonUpdate() {
     DbWarehouse warehouse = em.find(DbWarehouse.class, warehouseId);
-   // Long initialVersion = warehouse.version;
+    Long initialVersion = warehouse.version;
     
     // Update the warehouse
     warehouse.stock = 60;
@@ -91,7 +91,7 @@ public class WarehouseOptimisticLockingTest {
     em.flush();
     
     // Version should have incremented
-  //  assertTrue(warehouse.version > initialVersion);
+   assertTrue(warehouse.version > initialVersion);
   }
 
   /**

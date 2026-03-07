@@ -10,7 +10,7 @@ public class StoreEventObserver {
 
   private static final Logger LOGGER = Logger.getLogger(StoreEventObserver.class.getName());
 
-  @Inject 
+  @Inject
   LegacyStoreManagerGateway legacyStoreManagerGateway;
 
   public void onStoreCreated(@ObservesAsync StoreCreatedEvent event) {

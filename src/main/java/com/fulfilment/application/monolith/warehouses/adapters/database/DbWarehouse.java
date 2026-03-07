@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "warehouse")
-//@Cacheable
+@Cacheable
 public class DbWarehouse {
 
   @Id @GeneratedValue public Long id;

@@ -19,7 +19,6 @@ public class CreateWarehouseUseCase implements CreateWarehouseOperation {
     this.locationResolver = locationResolver;
   }
 
-  @Transactional
   @Override
   public void create(Warehouse warehouse) {
     // Validation 1: Business unit code must be unique

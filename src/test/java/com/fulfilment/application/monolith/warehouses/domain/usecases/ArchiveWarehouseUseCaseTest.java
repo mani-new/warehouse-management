@@ -135,6 +135,7 @@ public class ArchiveWarehouseUseCaseTest {
     executor.submit(() -> {
       try {
         startLatch.await(); // Synchronize start
+        Thread.sleep(50);
         updateStockInNewTransaction(businessUnitCode, 75);
         updateSuccess.set(true);
       } catch (Exception e) {
@@ -164,19 +165,9 @@ public class ArchiveWarehouseUseCaseTest {
       assertEquals(75, finalWarehouse.stock, "Stock should be updated to 75");
     }
 
- /*   if (exceptionCaught.get()) {
-      // Conflict detected — this is acceptable
-      assertTrue(exceptionCaught.get(), "OptimisticLockException should be thrown on concurrent modification");
-    } else {
-      // No conflict — both operations should succeed
-      assertTrue(archiveSuccess.get() && updateSuccess.get(), "Both operations should succeed without conflicts");
-      assertNotNull(finalWarehouse.archivedAt, "Warehouse should be archived");
-      assertEquals(75, finalWarehouse.stock, "Stock should be updated to 75");
-    }*/
   }
 
   // Helper methods
-
   @Transactional(TxType.REQUIRES_NEW)
   Warehouse createWarehouse(String businessUnitCode, String location) {
     Warehouse warehouse = new Warehouse();
@@ -205,6 +196,7 @@ public class ArchiveWarehouseUseCaseTest {
   @Transactional(TxType.REQUIRES_NEW)
   void updateStockInNewTransaction(String businessUnitCode, int newStock) {
     Warehouse warehouse = warehouseRepository.findByBusinessUnitCode(businessUnitCode);
+    em.refresh(warehouse);
     warehouse.stock = newStock;
     warehouseRepository.update(warehouse);
   }

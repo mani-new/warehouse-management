@@ -6,6 +6,7 @@ import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.usecases.CreateWarehouseUseCase;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,9 @@ public class WarehouseConcurrencyIT {
   @Inject
   LocationGateway locationResolver;
 
+  @Inject
+  EntityManager entityManager;
+
   private CreateWarehouseUseCase createWarehouseUseCase;
 
   @BeforeEach
@@ -57,18 +61,11 @@ public class WarehouseConcurrencyIT {
     CountDownLatch latch = new CountDownLatch(threadCount);
     
     List<Future<Boolean>> futures = new ArrayList<>();
-    long timestamp = System.currentTimeMillis();
     for (int i = 0; i < threadCount; i++) {
       final int index = i;
       Future<Boolean> future = executor.submit(() -> {
         try {
-          Warehouse warehouse = new Warehouse();
-          warehouse.businessUnitCode = "CONCURRENT-" + index + "-" + timestamp;
-          warehouse.location = "AMSTERDAM-001";
-          warehouse.capacity = 50;
-          warehouse.stock = 10;
-          
-          createWarehouseUseCase.create(warehouse);
+          createWarehouseInTransaction("CONCURRENT-" + index, "AMSTERDAM-001", 50, 10);
           return true;
         } catch (Exception e) {
           return false;
@@ -102,6 +99,7 @@ public class WarehouseConcurrencyIT {
   public void testConcurrentWarehouseCreationWithDuplicateCodeFails() throws InterruptedException {
     int threadCount = 5;
     ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+    CountDownLatch startLatch = new CountDownLatch(1);  // Control when threads start
     CountDownLatch latch = new CountDownLatch(threadCount);
     
     AtomicInteger successCount = new AtomicInteger(0);
@@ -112,13 +110,8 @@ public class WarehouseConcurrencyIT {
     for (int i = 0; i < threadCount; i++) {
       executor.submit(() -> {
         try {
-          Warehouse warehouse = new Warehouse();
-          warehouse.businessUnitCode = duplicateCode;  // Same code for all!
-          warehouse.location = "ZWOLLE-001";
-          warehouse.capacity = 30;
-          warehouse.stock = 5;
-          
-          createWarehouseUseCase.create(warehouse);
+          startLatch.await();  // Wait for all threads to be ready
+          createWarehouseInTransaction(duplicateCode, "ZWOLLE-001", 30, 5);
           successCount.incrementAndGet();
         } catch (Exception e) {
           // Expected: duplicate key or already exists error
@@ -128,7 +121,8 @@ public class WarehouseConcurrencyIT {
         }
       });
     }
-    
+
+    startLatch.countDown();  // Release all threads simultaneously
     latch.await(10, TimeUnit.SECONDS);
     executor.shutdown();
     
@@ -142,17 +136,9 @@ public class WarehouseConcurrencyIT {
    */
   @Test
   public void testConcurrentReadsAreNonBlocking() throws InterruptedException {
-//    // Create a warehouse first
-//    Warehouse warehouse = new Warehouse();
-//    warehouse.businessUnitCode = "READ-TEST-001";
-//    warehouse.location = "AMSTERDAM-001";
-//    warehouse.capacity = 100;
-//    warehouse.stock = 50;
-//    createWarehouseUseCase.create(warehouse);
-
     // Create and persist warehouse FIRST, in a separate transaction
     createWarehouseInNewTransaction("READ-TEST-001", "AMSTERDAM-001");
-    
+
     int readThreadCount = 20;
     ExecutorService executor = Executors.newFixedThreadPool(readThreadCount);
     CountDownLatch latch = new CountDownLatch(readThreadCount);
@@ -162,8 +148,8 @@ public class WarehouseConcurrencyIT {
     for (int i = 0; i < readThreadCount; i++) {
       executor.submit(() -> {
         try {
-          Warehouse found = warehouseRepository.findByBusinessUnitCode("READ-TEST-001");
-          if (found != null) {
+          boolean found = readWarehouseInTransaction("READ-TEST-001");
+          if (found) {
             successfulReads.incrementAndGet();
           }
         } finally {
@@ -187,5 +173,25 @@ public class WarehouseConcurrencyIT {
     warehouse.capacity = 100;
     warehouse.stock = 50;
     createWarehouseUseCase.create(warehouse);
+    entityManager.flush();  // Force flush to database
+    entityManager.clear();
+  }
+
+  @Transactional(value = Transactional.TxType.REQUIRES_NEW)
+  void createWarehouseInTransaction(String businessUnitCode, String location, int capacity, int stock) {
+    Warehouse warehouse = new Warehouse();
+    warehouse.businessUnitCode = businessUnitCode;
+    warehouse.location = location;
+    warehouse.capacity = capacity;
+    warehouse.stock = stock;
+    createWarehouseUseCase.create(warehouse);
+    entityManager.flush();  // Force flush to database
+    entityManager.clear();
+  }
+
+  @Transactional(value = Transactional.TxType.REQUIRES_NEW)
+  boolean readWarehouseInTransaction(String businessUnitCode) {
+    Warehouse found = warehouseRepository.findByBusinessUnitCode(businessUnitCode);
+    return found != null;
   }
 }
