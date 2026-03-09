@@ -37,15 +37,18 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
 
     - name: Verify Maven wrapper
-      run: ${{ runner.os == 'Windows' && './mvnw.cmd' || './mvnw' }} --version
+      run: ./mvnw --version
+      shell: bash
 
     - name: Run tests with coverage
-      run: ${{ runner.os == 'Windows' && './mvnw.cmd' || './mvnw' }} clean test jacoco:report -B -V
+      run: ./mvnw clean test jacoco:report -B -V
+      shell: bash
       env:
         MAVEN_OPTS: -Xmx3072m
 
     - name: Generate test report
-      run: ${{ runner.os == 'Windows' && './mvnw.cmd' || './mvnw' }} surefire-report:report -B
+      run: ./mvnw surefire-report:report -B
+      shell: bash
       if: always()
 
     - name: Upload test results
@@ -83,15 +86,18 @@ jobs:
         cache: maven
 
     - name: Check code formatting (if spotless is configured)
-      run: ${{ runner.os == 'Windows' && './mvnw.cmd' || './mvnw' }} spotless:check -B
+      run: ./mvnw spotless:check -B
+      shell: bash
       continue-on-error: true
 
     - name: Run static analysis (if configured)
-      run: ${{ runner.os == 'Windows' && './mvnw.cmd' || './mvnw' }} compile -B
+      run: ./mvnw compile -B
+      shell: bash
       continue-on-error: true
 
     - name: Check for vulnerabilities
-      run: ${{ runner.os == 'Windows' && './mvnw.cmd' || './mvnw' }} org.owasp:dependency-check-maven:check -B
+      run: ./mvnw org.owasp:dependency-check-maven:check -B
+      shell: bash
       continue-on-error: true
 
   build-docker:
