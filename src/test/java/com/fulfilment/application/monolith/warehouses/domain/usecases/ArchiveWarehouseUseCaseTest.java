@@ -63,6 +63,135 @@ public class ArchiveWarehouseUseCaseTest {
   }
 
   /**
+   * Test archive with zero stock warehouse
+   */
+  @Test
+  @Transactional
+  public void testArchiveWarehouseWithZeroStock() {
+    // Create warehouse with zero stock
+    Warehouse warehouse = createWarehouse("ARCHIVE-ZERO-STOCK", "AMSTERDAM-001");
+    warehouse.stock = 0;
+    warehouseRepository.update(warehouse);
+
+    // Archive it
+    archiveWarehouseUseCase.archive(warehouse);
+
+    // Verify archived
+    Warehouse archived = warehouseRepository.findByBusinessUnitCode("ARCHIVE-ZERO-STOCK");
+    assertNotNull(archived.archivedAt);
+    assertEquals(0, archived.stock);
+  }
+
+  /**
+   * Test archive with full capacity warehouse
+   */
+  @Test
+  @Transactional
+  public void testArchiveWarehouseWithFullCapacity() {
+    // Create warehouse with full capacity
+    Warehouse warehouse = createWarehouse("ARCHIVE-FULL-CAP", "AMSTERDAM-001");
+    warehouse.stock = warehouse.capacity;
+    warehouseRepository.update(warehouse);
+
+    // Archive it
+    archiveWarehouseUseCase.archive(warehouse);
+
+    // Verify archived
+    Warehouse archived = warehouseRepository.findByBusinessUnitCode("ARCHIVE-FULL-CAP");
+    assertNotNull(archived.archivedAt);
+    assertEquals(archived.capacity, archived.stock);
+  }
+
+  /**
+   * Test archive sets timestamp correctly
+   */
+  @Test
+  @Transactional
+  public void testArchiveSetsArchivedAtTimestamp() {
+    LocalDateTime beforeArchive = LocalDateTime.now().minusSeconds(1);
+
+    // Create warehouse
+    Warehouse warehouse = createWarehouse("ARCHIVE-TIMESTAMP", "AMSTERDAM-001");
+
+    // Archive it
+    archiveWarehouseUseCase.archive(warehouse);
+
+    LocalDateTime afterArchive = LocalDateTime.now().plusSeconds(1);
+
+    // Verify timestamp
+    Warehouse archived = warehouseRepository.findByBusinessUnitCode("ARCHIVE-TIMESTAMP");
+    assertNotNull(archived.archivedAt);
+    assertTrue(archived.archivedAt.isAfter(beforeArchive));
+    assertTrue(archived.archivedAt.isBefore(afterArchive));
+  }
+
+  /**
+   * Test archive preserves all warehouse data
+   */
+  @Test
+  @Transactional
+  public void testArchivePreservesAllWarehouseData() {
+    // Create warehouse with specific data
+    Warehouse warehouse = createWarehouse("PRESERVE-DATA", "ZWOLLE-001");
+    warehouse.capacity = 40;
+    warehouse.stock = 20;
+    warehouseRepository.update(warehouse);
+
+    // Archive it
+    archiveWarehouseUseCase.archive(warehouse);
+
+    // Verify all data preserved
+    Warehouse archived = warehouseRepository.findByBusinessUnitCode("PRESERVE-DATA");
+    assertNotNull(archived.archivedAt);
+    assertEquals("PRESERVE-DATA", archived.businessUnitCode);
+    assertEquals("ZWOLLE-001", archived.location);
+    assertEquals(40, archived.capacity);
+    assertEquals(20, archived.stock);
+    assertNotNull(archived.createdAt);
+  }
+
+  /**
+   * Test archive multiple warehouses
+   */
+  @Test
+  @Transactional
+  public void testArchiveMultipleWarehouses() {
+    // Create multiple warehouses
+    Warehouse warehouse1 = createWarehouse("MULTI-ARCHIVE-1", "AMSTERDAM-001");
+    Warehouse warehouse2 = createWarehouse("MULTI-ARCHIVE-2", "ZWOLLE-001");
+    Warehouse warehouse3 = createWarehouse("MULTI-ARCHIVE-3", "TILBURG-001");
+
+    // Archive all
+    archiveWarehouseUseCase.archive(warehouse1);
+    archiveWarehouseUseCase.archive(warehouse2);
+    archiveWarehouseUseCase.archive(warehouse3);
+
+    // Verify all archived
+    assertNotNull(warehouseRepository.findByBusinessUnitCode("MULTI-ARCHIVE-1").archivedAt);
+    assertNotNull(warehouseRepository.findByBusinessUnitCode("MULTI-ARCHIVE-2").archivedAt);
+    assertNotNull(warehouseRepository.findByBusinessUnitCode("MULTI-ARCHIVE-3").archivedAt);
+  }
+
+  /**
+   * Test archive with different locations
+   */
+  @Test
+  @Transactional
+  public void testArchiveWarehouseWithDifferentLocations() {
+    String[] locations = {"AMSTERDAM-001", "ZWOLLE-001", "TILBURG-001", "HELMOND-001"};
+
+    for (String location : locations) {
+      String buc = "ARCHIVE-" + location.replace("-", "");
+      Warehouse warehouse = createWarehouse(buc, location);
+      archiveWarehouseUseCase.archive(warehouse);
+
+      Warehouse archived = warehouseRepository.findByBusinessUnitCode(buc);
+      assertNotNull(archived.archivedAt);
+      assertEquals(location, archived.location);
+    }
+  }
+
+  /**
    * Cannot archive non-existent warehouse
    */
   @Test
@@ -94,6 +223,77 @@ public class ArchiveWarehouseUseCaseTest {
     });
 
     assertTrue(exception.getMessage().contains("already archived"));
+  }
+
+  /**
+   * Test archive with minimum capacity
+   */
+  @Test
+  @Transactional
+  public void testArchiveWarehouseWithMinimumCapacity() {
+    Warehouse warehouse = createWarehouse("MIN-CAP-ARCHIVE", "AMSTERDAM-001");
+    warehouse.capacity = 1;
+    warehouse.stock = 0;
+    warehouseRepository.update(warehouse);
+
+    archiveWarehouseUseCase.archive(warehouse);
+
+    Warehouse archived = warehouseRepository.findByBusinessUnitCode("MIN-CAP-ARCHIVE");
+    assertNotNull(archived.archivedAt);
+    assertEquals(1, archived.capacity);
+  }
+
+  /**
+   * Concurrent archive operations on different warehouses
+   */
+  @Test
+  public void testConcurrentArchiveDifferentWarehouses() throws InterruptedException {
+    // Create multiple warehouses
+    String[] businessUnitCodes = {"CONCURRENT-ARCHIVE-1", "CONCURRENT-ARCHIVE-2", "CONCURRENT-ARCHIVE-3"};
+
+    for (String buc : businessUnitCodes) {
+      createWarehouseInNewTransaction(buc, "AMSTERDAM-001");
+    }
+
+    ExecutorService executor = Executors.newFixedThreadPool(3);
+    CountDownLatch startLatch = new CountDownLatch(1);
+    CountDownLatch finishLatch = new CountDownLatch(3);
+
+    AtomicBoolean[] successes = {new AtomicBoolean(false), new AtomicBoolean(false), new AtomicBoolean(false)};
+    AtomicBoolean exceptionCaught = new AtomicBoolean(false);
+
+    // Submit archive tasks
+    for (int i = 0; i < businessUnitCodes.length; i++) {
+      final int index = i;
+      final String buc = businessUnitCodes[i];
+
+      executor.submit(() -> {
+        try {
+          startLatch.await();
+          archiveWarehouseInNewTransaction(buc);
+          successes[index].set(true);
+        } catch (Exception e) {
+          exceptionCaught.set(true);
+        } finally {
+          finishLatch.countDown();
+        }
+      });
+    }
+
+    startLatch.countDown();
+    finishLatch.await(10, TimeUnit.SECONDS);
+    executor.shutdown();
+
+    // Verify all succeeded
+    assertFalse(exceptionCaught.get(), "No exceptions should be thrown");
+    for (AtomicBoolean success : successes) {
+      assertTrue(success.get(), "All archive operations should succeed");
+    }
+
+    // Verify all archived
+    for (String buc : businessUnitCodes) {
+      assertNotNull(warehouseRepository.findByBusinessUnitCode(buc).archivedAt);
+    }
   }
 
   /**

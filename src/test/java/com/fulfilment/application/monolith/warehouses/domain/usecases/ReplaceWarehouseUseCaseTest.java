@@ -81,6 +81,227 @@ public class ReplaceWarehouseUseCaseTest {
   }
 
   /**
+   * Test replace with same location but different capacity
+   */
+  @Test
+  @Transactional
+  public void testReplaceWarehouseSameLocation() {
+    // Create a warehouse
+    Warehouse warehouse = createWarehouse("REPLACE-SAME-LOC", "AMSTERDAM-001", 80, 40);
+
+    // Replace with same location but different capacity
+    Warehouse replacement = new Warehouse();
+    replacement.businessUnitCode = "REPLACE-SAME-LOC";
+    replacement.location = "AMSTERDAM-001";
+    replacement.capacity = 60;
+    replacement.stock = 30;
+
+    replaceWarehouseUseCase.replace(replacement);
+
+    // Verify it was replaced
+    Warehouse updated = warehouseRepository.findByBusinessUnitCode("REPLACE-SAME-LOC");
+    assertNotNull(updated);
+    assertEquals("AMSTERDAM-001", updated.location);
+    assertEquals(60, updated.capacity);
+    assertEquals(30, updated.stock);
+  }
+
+  /**
+   * Test replace with zero stock
+   */
+  @Test
+  @Transactional
+  public void testReplaceWarehouseWithZeroStock() {
+    // Create a warehouse
+    Warehouse warehouse = createWarehouse("REPLACE-ZERO-STOCK", "AMSTERDAM-001", 80, 40);
+
+    // Replace with zero stock
+    Warehouse replacement = new Warehouse();
+    replacement.businessUnitCode = "REPLACE-ZERO-STOCK";
+    replacement.location = "AMSTERDAM-001";
+    replacement.capacity = 80;
+    replacement.stock = 0;
+
+    replaceWarehouseUseCase.replace(replacement);
+
+    // Verify it was replaced
+    Warehouse updated = warehouseRepository.findByBusinessUnitCode("REPLACE-ZERO-STOCK");
+    assertNotNull(updated);
+    assertEquals(0, updated.stock);
+  }
+
+  /**
+   * Test replace with full capacity stock
+   */
+  @Test
+  @Transactional
+  public void testReplaceWarehouseWithFullCapacityStock() {
+    // Create a warehouse
+    Warehouse warehouse = createWarehouse("REPLACE-FULL-STOCK", "ZWOLLE-001", 30, 15);
+
+    // Replace with full capacity stock
+    Warehouse replacement = new Warehouse();
+    replacement.businessUnitCode = "REPLACE-FULL-STOCK";
+    replacement.location = "ZWOLLE-001";
+    replacement.capacity = 40;
+    replacement.stock = 40;
+
+    replaceWarehouseUseCase.replace(replacement);
+
+    // Verify it was replaced
+    Warehouse updated = warehouseRepository.findByBusinessUnitCode("REPLACE-FULL-STOCK");
+    assertNotNull(updated);
+    assertEquals(40, updated.capacity);
+    assertEquals(40, updated.stock);
+  }
+
+  /**
+   * Test replace preserves business unit code
+   */
+  @Test
+  @Transactional
+  public void testReplacePreservesBusinessUnitCode() {
+    // Create a warehouse
+    Warehouse warehouse = createWarehouse("PRESERVE-BUC", "AMSTERDAM-001", 80, 40);
+
+    // Replace with different values
+    Warehouse replacement = new Warehouse();
+    replacement.businessUnitCode = "PRESERVE-BUC";
+    replacement.location = "ZWOLLE-001";
+    replacement.capacity = 30;
+    replacement.stock = 15;
+
+    replaceWarehouseUseCase.replace(replacement);
+
+    // Verify business unit code is preserved
+    Warehouse updated = warehouseRepository.findByBusinessUnitCode("PRESERVE-BUC");
+    assertNotNull(updated);
+    assertEquals("PRESERVE-BUC", updated.businessUnitCode);
+  }
+
+  /**
+   * Test replace sets new created timestamp
+   */
+  @Test
+  @Transactional
+  public void testReplaceSetsNewCreatedAtTimestamp() {
+    LocalDateTime originalTime = LocalDateTime.now().minusHours(1);
+
+    // Create a warehouse with old timestamp
+    Warehouse warehouse = createWarehouse("REPLACE-TIMESTAMP", "AMSTERDAM-001", 80, 40);
+    warehouse.createdAt = originalTime;
+    warehouseRepository.update(warehouse);
+
+    // Replace warehouse
+    Warehouse replacement = new Warehouse();
+    replacement.businessUnitCode = "REPLACE-TIMESTAMP";
+    replacement.location = "ZWOLLE-001";
+    replacement.capacity = 30;
+    replacement.stock = 15;
+
+    replaceWarehouseUseCase.replace(replacement);
+
+    // Verify new timestamp is set
+    Warehouse updated = warehouseRepository.findByBusinessUnitCode("REPLACE-TIMESTAMP");
+    assertNotNull(updated.createdAt);
+    assertTrue(updated.createdAt.isAfter(originalTime));
+  }
+
+  /**
+   * Test replace archives original warehouse
+   */
+  @Test
+  @Transactional
+  public void testReplaceArchivesOriginalWarehouse() {
+    // Create a warehouse
+    Warehouse warehouse = createWarehouse("ARCHIVE-ORIGINAL", "AMSTERDAM-001", 80, 40);
+
+    // Verify not archived initially
+    Warehouse beforeReplace = warehouseRepository.findByBusinessUnitCode("ARCHIVE-ORIGINAL");
+    assertNull(beforeReplace.archivedAt);
+
+    // Replace warehouse
+    Warehouse replacement = new Warehouse();
+    replacement.businessUnitCode = "ARCHIVE-ORIGINAL";
+    replacement.location = "ZWOLLE-001";
+    replacement.capacity = 30;
+    replacement.stock = 15;
+
+    replaceWarehouseUseCase.replace(replacement);
+
+    // Verify original is NOT archived (replace updates in place, doesn't archive)
+    Warehouse afterReplace = warehouseRepository.findByBusinessUnitCode("ARCHIVE-ORIGINAL");
+    assertNull(afterReplace.archivedAt, "Replace operation should update in place, not archive");
+    assertEquals("ZWOLLE-001", afterReplace.location);
+    assertEquals(30, afterReplace.capacity);
+    assertEquals(15, afterReplace.stock);
+  }
+
+  /**
+   * Test replace multiple times
+   */
+  @Test
+  @Transactional
+  public void testReplaceMultipleTimes() {
+    // Create original warehouse
+    Warehouse warehouse = createWarehouse("MULTI-REPLACE", "AMSTERDAM-001", 80, 40);
+
+    // First replacement
+    Warehouse replacement1 = new Warehouse();
+    replacement1.businessUnitCode = "MULTI-REPLACE";
+    replacement1.location = "ZWOLLE-001";
+    replacement1.capacity = 30;
+    replacement1.stock = 15;
+
+    replaceWarehouseUseCase.replace(replacement1);
+
+    Warehouse afterFirst = warehouseRepository.findByBusinessUnitCode("MULTI-REPLACE");
+    assertEquals("ZWOLLE-001", afterFirst.location);
+    assertEquals(30, afterFirst.capacity);
+
+    // Second replacement
+    Warehouse replacement2 = new Warehouse();
+    replacement2.businessUnitCode = "MULTI-REPLACE";
+    replacement2.location = "TILBURG-001";
+    replacement2.capacity = 35;
+    replacement2.stock = 20;
+
+    replaceWarehouseUseCase.replace(replacement2);
+
+    Warehouse afterSecond = warehouseRepository.findByBusinessUnitCode("MULTI-REPLACE");
+    assertEquals("TILBURG-001", afterSecond.location);
+    assertEquals(35, afterSecond.capacity);
+    assertEquals(20, afterSecond.stock);
+  }
+
+  /**
+   * Test replace to all valid locations
+   */
+  @ParameterizedTest
+  @MethodSource("provideValidLocations")
+  @Transactional
+  public void testReplaceToAllValidLocations(String location) {
+    // Create original warehouse
+    Warehouse warehouse = createWarehouse("REPLACE-TO-" + location.replace("-", ""), "AMSTERDAM-001", 80, 40);
+
+    // Replace to new location with appropriate capacity
+    int maxCapacity = getMaxCapacityForLocation(location);
+    Warehouse replacement = new Warehouse();
+    replacement.businessUnitCode = "REPLACE-TO-" + location.replace("-", "");
+    replacement.location = location;
+    replacement.capacity = maxCapacity;
+    replacement.stock = maxCapacity / 2;
+
+    replaceWarehouseUseCase.replace(replacement);
+
+    // Verify replacement
+    Warehouse updated = warehouseRepository.findByBusinessUnitCode("REPLACE-TO-" + location.replace("-", ""));
+    assertNotNull(updated);
+    assertEquals(location, updated.location);
+    assertEquals(maxCapacity, updated.capacity);
+  }
+
+  /**
    * Cannot replace non-existent warehouse
    */
   @Test
@@ -263,7 +484,26 @@ public class ReplaceWarehouseUseCaseTest {
     replaceWarehouseUseCase.replace(replacement);
   }
 
+  private int getMaxCapacityForLocation(String location) {
+    switch (location) {
+      case "ZWOLLE-001": return 40;
+      case "ZWOLLE-002": return 50;
+      case "TILBURG-001": return 40;
+      case "HELMOND-001": return 45;
+      case "AMSTERDAM-001": return 100;
+      case "AMSTERDAM-002": return 75;
+      case "EINDHOVEN-001": return 70;
+      case "VETSBY-001": return 90;
+      default: return 100;
+    }
+  }
+
   // Parameterized test data
+
+  static Stream<String> provideValidLocations() {
+    return Stream.of("ZWOLLE-001", "ZWOLLE-002", "TILBURG-001", "HELMOND-001",
+                     "AMSTERDAM-001", "AMSTERDAM-002", "EINDHOVEN-001", "VETSBY-001");
+  }
 
   static Stream<InvalidReplaceScenario> provideInvalidReplaceScenarios() {
     return Stream.of(
