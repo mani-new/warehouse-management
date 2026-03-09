@@ -1,81 +1,109 @@
+
 package com.warehouse.api.beans;
 
+import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.processing.Generated;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonPropertyOrder({
+    "content",
+    "totalElements",
+    "totalPages",
+    "page",
+    "pageSize",
+    "hasNext",
+    "hasPrevious"
+})
+@Generated("jsonschema2pojo")
 public class PaginatedWarehouseResponse {
-    private List<Warehouse> content;
-    private int totalElements;
-    private int totalPages;
-    private int page;
-    private int pageSize;
-    private boolean hasNext;
-    private boolean hasPrevious;
 
-    public PaginatedWarehouseResponse() {}
+    @JsonProperty("content")
+    private List<Warehouse> content = new ArrayList<Warehouse>();
+    @JsonProperty("totalElements")
+    private Integer totalElements;
+    @JsonProperty("totalPages")
+    private Integer totalPages;
+    @JsonProperty("page")
+    private Integer page;
+    @JsonProperty("pageSize")
+    private Integer pageSize;
+    @JsonProperty("hasNext")
+    private Boolean hasNext;
+    @JsonProperty("hasPrevious")
+    private Boolean hasPrevious;
 
-    public PaginatedWarehouseResponse(List<Warehouse> content, int totalElements, int totalPages, int page, int pageSize, boolean hasNext, boolean hasPrevious) {
-        this.content = content;
-        this.totalElements = totalElements;
-        this.totalPages = totalPages;
-        this.page = page;
-        this.pageSize = pageSize;
-        this.hasNext = hasNext;
-        this.hasPrevious = hasPrevious;
-    }
-
+    @JsonProperty("content")
     public List<Warehouse> getContent() {
         return content;
     }
 
+    @JsonProperty("content")
     public void setContent(List<Warehouse> content) {
         this.content = content;
     }
 
-    public int getTotalElements() {
+    @JsonProperty("totalElements")
+    public Integer getTotalElements() {
         return totalElements;
     }
 
-    public void setTotalElements(int totalElements) {
+    @JsonProperty("totalElements")
+    public void setTotalElements(Integer totalElements) {
         this.totalElements = totalElements;
     }
 
-    public int getTotalPages() {
+    @JsonProperty("totalPages")
+    public Integer getTotalPages() {
         return totalPages;
     }
 
-    public void setTotalPages(int totalPages) {
+    @JsonProperty("totalPages")
+    public void setTotalPages(Integer totalPages) {
         this.totalPages = totalPages;
     }
 
-    public int getPage() {
+    @JsonProperty("page")
+    public Integer getPage() {
         return page;
     }
 
-    public void setPage(int page) {
+    @JsonProperty("page")
+    public void setPage(Integer page) {
         this.page = page;
     }
 
-    public int getPageSize() {
+    @JsonProperty("pageSize")
+    public Integer getPageSize() {
         return pageSize;
     }
 
-    public void setPageSize(int pageSize) {
+    @JsonProperty("pageSize")
+    public void setPageSize(Integer pageSize) {
         this.pageSize = pageSize;
     }
 
-    public boolean isHasNext() {
+    @JsonProperty("hasNext")
+    public Boolean getHasNext() {
         return hasNext;
     }
 
-    public void setHasNext(boolean hasNext) {
+    @JsonProperty("hasNext")
+    public void setHasNext(Boolean hasNext) {
         this.hasNext = hasNext;
     }
 
-    public boolean isHasPrevious() {
+    @JsonProperty("hasPrevious")
+    public Boolean getHasPrevious() {
         return hasPrevious;
     }
 
-    public void setHasPrevious(boolean hasPrevious) {
+    @JsonProperty("hasPrevious")
+    public void setHasPrevious(Boolean hasPrevious) {
         this.hasPrevious = hasPrevious;
     }
+
 }

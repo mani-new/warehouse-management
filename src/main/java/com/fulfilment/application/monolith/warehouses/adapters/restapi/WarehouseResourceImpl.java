@@ -102,17 +102,26 @@ public class WarehouseResourceImpl implements WarehouseResource {
     }
   }
 
-  public PaginatedWarehouseResponse searchWarehouses(String location, Integer minCapacity, Integer maxCapacity,
-      String sortBy, String sortOrder, Integer page, Integer pageSize) {
-    // Set defaults
-    if (page == null) page = 0;
-    if (pageSize == null) pageSize = 10;
-    if (pageSize > 100) pageSize = 100;
+  @Override
+  @jakarta.ws.rs.GET
+  @jakarta.ws.rs.Path("search")
+  @jakarta.ws.rs.Produces("application/json")
+  public PaginatedWarehouseResponse searchAndFilterWarehouses(@jakarta.ws.rs.QueryParam("location") String location,
+      @jakarta.ws.rs.QueryParam("minCapacity") java.math.BigInteger minCapacity,
+      @jakarta.ws.rs.QueryParam("maxCapacity") java.math.BigInteger maxCapacity,
+      @jakarta.ws.rs.QueryParam("sortBy") String sortBy,
+      @jakarta.ws.rs.QueryParam("sortOrder") String sortOrder,
+      @jakarta.ws.rs.QueryParam("page") java.math.BigInteger page,
+      @jakarta.ws.rs.QueryParam("pageSize") java.math.BigInteger pageSize) {
+    // Convert BigInteger to int, with defaults
+    int pageInt = page != null ? page.intValue() : 0;
+    int pageSizeInt = pageSize != null ? pageSize.intValue() : 10;
+    if (pageSizeInt > 100) pageSizeInt = 100;
     if (sortBy == null) sortBy = "createdAt";
     if (sortOrder == null) sortOrder = "asc";
 
     // Perform search
-    var panachePage = warehouseRepository.searchWarehouses(location, minCapacity, maxCapacity, sortBy, sortOrder, page, pageSize);
+    var panachePage = warehouseRepository.searchWarehouses(location, minCapacity != null ? minCapacity.intValue() : null, maxCapacity != null ? maxCapacity.intValue() : null, sortBy, sortOrder, pageInt, pageSizeInt);
     var warehouses = panachePage.list().stream().map(DbWarehouse::toWarehouse).map(this::toWarehouseResponse).toList();
 
     // Build response
@@ -120,8 +129,8 @@ public class WarehouseResourceImpl implements WarehouseResource {
     response.setContent(warehouses);
     response.setTotalElements((int) panachePage.count());
     response.setTotalPages(panachePage.pageCount());
-    response.setPage(page);
-    response.setPageSize(pageSize);
+    response.setPage(pageInt);
+    response.setPageSize(pageSizeInt);
     response.setHasNext(panachePage.hasNextPage());
     response.setHasPrevious(panachePage.hasPreviousPage());
 
