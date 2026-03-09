@@ -98,7 +98,7 @@ public class WarehouseValidationTest {
     return Stream.of(
         Arguments.of("INVALID-LOC", "not valid"),
         Arguments.of("NONEXISTENT-001", "not valid"),
-        Arguments.of("", "not valid")
+        Arguments.of("", "cannot be null or empty")
     );
   }
 

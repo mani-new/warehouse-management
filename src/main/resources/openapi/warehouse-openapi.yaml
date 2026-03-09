@@ -155,24 +155,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  content:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Warehouse'
-                  totalElements:
-                    type: integer
-                  totalPages:
-                    type: integer
-                  page:
-                    type: integer
-                  pageSize:
-                    type: integer
-                  hasNext:
-                    type: boolean
-                  hasPrevious:
-                    type: boolean
+                $ref: '#/components/schemas/PaginatedWarehouseResponse'
 components:
   schemas:
     Warehouse:
@@ -193,3 +176,22 @@ components:
         stock:
           type: integer
           example: 50
+    PaginatedWarehouseResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Warehouse'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
