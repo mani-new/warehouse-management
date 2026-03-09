@@ -39,16 +39,19 @@ jobs:
     - name: Verify Maven wrapper
       run: ./mvnw --version
       shell: bash
+      working-directory: ${{ github.workspace }}
 
     - name: Run tests with coverage
       run: ./mvnw clean test jacoco:report -B -V
       shell: bash
+      working-directory: ${{ github.workspace }}
       env:
         MAVEN_OPTS: -Xmx3072m
 
     - name: Generate test report
       run: ./mvnw surefire-report:report -B
       shell: bash
+      working-directory: ${{ github.workspace }}
       if: always()
 
     - name: Upload test results
@@ -88,16 +91,19 @@ jobs:
     - name: Check code formatting (if spotless is configured)
       run: ./mvnw spotless:check -B
       shell: bash
+      working-directory: ${{ github.workspace }}
       continue-on-error: true
 
     - name: Run static analysis (if configured)
       run: ./mvnw compile -B
       shell: bash
+      working-directory: ${{ github.workspace }}
       continue-on-error: true
 
     - name: Check for vulnerabilities
       run: ./mvnw org.owasp:dependency-check-maven:check -B
       shell: bash
+      working-directory: ${{ github.workspace }}
       continue-on-error: true
 
   build-docker:
