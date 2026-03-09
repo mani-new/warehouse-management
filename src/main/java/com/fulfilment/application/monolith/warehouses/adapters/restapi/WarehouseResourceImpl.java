@@ -6,20 +6,22 @@ import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehou
 import com.fulfilment.application.monolith.warehouses.domain.ports.ReplaceWarehouseOperation;
 import com.warehouse.api.WarehouseResource;
 import com.warehouse.api.beans.Warehouse;
+import com.warehouse.api.beans.PaginatedWarehouseResponse;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.WebApplicationException;
 import java.util.List;
+import com.fulfilment.application.monolith.warehouses.adapters.database.DbWarehouse;
 
 @RequestScoped
 public class WarehouseResourceImpl implements WarehouseResource {
 
-  @Inject private WarehouseRepository warehouseRepository;
-  @Inject private CreateWarehouseOperation createWarehouseOperation;
-  @Inject private ArchiveWarehouseOperation archiveWarehouseOperation;
-  @Inject private ReplaceWarehouseOperation replaceWarehouseOperation;
+  @Inject WarehouseRepository warehouseRepository;
+  @Inject CreateWarehouseOperation createWarehouseOperation;
+  @Inject ArchiveWarehouseOperation archiveWarehouseOperation;
+  @Inject ReplaceWarehouseOperation replaceWarehouseOperation;
 
   @Override
   public List<Warehouse> listAllWarehousesUnits() {
@@ -98,6 +100,32 @@ public class WarehouseResourceImpl implements WarehouseResource {
     } catch (IllegalArgumentException e) {
       throw new WebApplicationException(e.getMessage(), 400);
     }
+  }
+
+  public PaginatedWarehouseResponse searchWarehouses(String location, Integer minCapacity, Integer maxCapacity,
+      String sortBy, String sortOrder, Integer page, Integer pageSize) {
+    // Set defaults
+    if (page == null) page = 0;
+    if (pageSize == null) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
+    if (sortBy == null) sortBy = "createdAt";
+    if (sortOrder == null) sortOrder = "asc";
+
+    // Perform search
+    var panachePage = warehouseRepository.searchWarehouses(location, minCapacity, maxCapacity, sortBy, sortOrder, page, pageSize);
+    var warehouses = panachePage.list().stream().map(DbWarehouse::toWarehouse).map(this::toWarehouseResponse).toList();
+
+    // Build response
+    var response = new PaginatedWarehouseResponse();
+    response.setContent(warehouses);
+    response.setTotalElements((int) panachePage.count());
+    response.setTotalPages(panachePage.pageCount());
+    response.setPage(page);
+    response.setPageSize(pageSize);
+    response.setHasNext(panachePage.hasNextPage());
+    response.setHasPrevious(panachePage.hasPreviousPage());
+
+    return response;
   }
 
   private Warehouse toWarehouseResponse(

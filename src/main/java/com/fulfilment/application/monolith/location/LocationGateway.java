@@ -24,11 +24,27 @@ public class LocationGateway implements LocationResolver {
 
   @Override
   public Location resolveByIdentifier(String identifier) {
-    // Simple repository pattern: search through the predefined locations
-    // Returns the location if found, or null if not found
-    return locations.stream()
-        .filter(location -> location.identifier().equals(identifier))
+    // Validate input: null and empty string checks
+    if (identifier == null || identifier.isBlank()) {
+      throw new IllegalArgumentException("Location identifier cannot be null or empty");
+    }
+
+    // Trim and normalize the identifier for case-insensitive comparison
+    String normalizedIdentifier = identifier.trim();
+
+    // Search through the predefined locations
+    Location location = locations.stream()
+        .filter(loc -> loc.identifier().equalsIgnoreCase(normalizedIdentifier))
         .findFirst()
         .orElse(null);
+
+    // Log warning if location not found for debugging purposes
+    if (location == null) {
+      System.err.println("Warning: Location with identifier '" + identifier +
+          "' not found. Available locations: " +
+          locations.stream().map(Location::identifier).toList());
+    }
+
+    return location;
   }
 }

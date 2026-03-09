@@ -102,6 +102,77 @@ paths:
 
         '400':
           description: Invalid request parameters
+
+  /warehouse/search:
+    get:
+      summary: Search and filter warehouses
+      parameters:
+        - name: location
+          in: query
+          description: Filter by location identifier (e.g. AMSTERDAM-001)
+          schema:
+            type: string
+        - name: minCapacity
+          in: query
+          description: Filter warehouses with capacity ≥ this value
+          schema:
+            type: integer
+        - name: maxCapacity
+          in: query
+          description: Filter warehouses with capacity ≤ this value
+          schema:
+            type: integer
+        - name: sortBy
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [createdAt, capacity]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: page
+          in: query
+          description: Page number, 0-indexed
+          schema:
+            type: integer
+            default: 0
+        - name: pageSize
+          in: query
+          description: Page size
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+      responses:
+        '200':
+          description: A paginated list of warehouse units
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Warehouse'
+                  totalElements:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  hasNext:
+                    type: boolean
+                  hasPrevious:
+                    type: boolean
 components:
   schemas:
     Warehouse:
